@@ -1,0 +1,12 @@
+#! /bin/bash
+
+if [ ! -e work ]; then
+vlib.exe work
+fi
+
+vlog.exe -incr -f vfile.list -work work
+
+vsim.exe test -lib work -c -keepstdout -do "\
+    add wave -noupdate /test/* -recursive; \
+    run -all; quit;"
+
