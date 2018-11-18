@@ -1,7 +1,7 @@
 module lcd_control
   (
-   input wire         S_AXI_ACLK,
-   input wire         S_AXI_ARESETN,
+   input wire         AXI_ACLK,
+   input wire         AXI_ARESETN,
 
    ////////////////////////////////////////////////////////////////////////////
    // AXI Lite Slave Interface
@@ -24,19 +24,53 @@ module lcd_control
    output wire        S_AXI_RVALID,
    input wire         S_AXI_RREADY,
 
+   ////////////////////////////////////////////////////////////////////////////
+   // AXI Master Interface
+   output wire [31:0] M_AXI_AWADDR,
+   output wire [7:0]  M_AXI_AWLEN,
+   output wire [2:0]  M_AXI_AWSIZE,
+   output wire [1:0]  M_AXI_AWBURST,
+   output wire [3:0]  M_AXI_AWCACHE,
+   output wire        M_AXI_AWVALID,
+   input wire         M_AXI_AWREADY,
+   output wire [31:0] M_AXI_WDATA,
+   output wire [3:0]  M_AXI_WSTRB,
+   output wire        M_AXI_WLAST,
+   output wire        M_AXI_WVALID,
+   input wire         M_AXI_WREADY,
+   input wire [1:0]   M_AXI_BRESP,
+   input wire         M_AXI_BVALID,
+   output wire        M_AXI_BREADY,
+
+   output wire [31:0] M_AXI_ARADDR,
+   output wire [7:0]  M_AXI_ARLEN,
+   output wire [2:0]  M_AXI_ARSIZE,
+   output wire [1:0]  M_AXI_ARBURST,
+   output wire [3:0]  M_AXI_ARCACHE,
+   output wire        M_AXI_ARVALID,
+   input wire         M_AXI_ARREADY,
+   input wire [31:0]  M_AXI_RDATA,
+   input wire [1:0]   M_AXI_RRESP,
+   input wire         M_AXI_RLAST,
+   input wire         M_AXI_RVALID,
+   output wire        M_AXI_RREADY,
+
+  ////////////////////////////////////////////////////////////////////////////
+  // LCD Interface
    output wire [4:0]  lcd_ctl,
    output wire [7:0]  lcd_data
    );
 
    wire               frame_req;
+   wire [31:0]        frame_address;
    wire               fifo_req;
-   reg                fifo_valid;
-   reg [31:0]         fifo_data;
+   wire               fifo_valid;
+   wire [31:0]        fifo_data;
 
    lcd_reg lcd_reg
      (
-      .S_AXI_ACLK(S_AXI_ACLK),
-      .S_AXI_ARESETN(S_AXI_ARESETN),
+      .S_AXI_ACLK(AXI_ACLK),
+      .S_AXI_ARESETN(AXI_ARESETN),
 
       .S_AXI_AWADDR(S_AXI_AWADDR),
       .S_AXI_AWVALID(S_AXI_AWVALID),
@@ -61,46 +95,49 @@ module lcd_control
       .lcd_data(lcd_data),
 
       .frame_req(frame_req),
+      .frame_address(frame_address),
 
       .fifo_req(fifo_req),
       .fifo_valid(fifo_valid),
       .fifo_data(fifo_data)
       );
 
-   reg [1:0]          color;
-   reg [13:0]         cnt;
-   
+   assign M_AXI_AWVALID = 1'b0;
+   assign M_AXI_WVALID = 1'b0;
+   assign M_AXI_BREADY = 1'b1;
+   assign M_AXI_AWADDR[31:0] = 0;
+   assign M_AXI_AWLEN[7:0] = 0;
+   assign M_AXI_AWSIZE[2:0] = 0;
+   assign M_AXI_AWBURST[1:0] = 0;
+   assign M_AXI_AWCACHE[3:0] = 0;
+   assign M_AXI_WDATA[31:0] = 0;
+   assign M_AXI_WSTRB[3:0] = 0;
+   assign M_AXI_WLAST = 0;
 
-   always @(posedge S_AXI_ACLK or negedge S_AXI_ARESETN)begin
-      if(~S_AXI_ARESETN) begin
-         color <= 0;
-         cnt <= 0;
-         fifo_valid <= 1'b0;
-      end else if(frame_req)begin
-         color <= 0;
-         cnt <= 0;
-         fifo_valid <= 1'b1;
-      end else if(fifo_valid & fifo_req)begin
-         if(color==0)begin
-            fifo_data <= {1'b0,cnt[13:0],1'b0,1'b0,cnt[13:0],1'b1};
-         end else if(color==1)begin
-            fifo_data <= {2{16'h001f}};
-         end else if(color==2)begin
-            fifo_data <= {2{16'h07e0}};
-         end else if(color==3)begin
-            fifo_data <= {2{16'hf100}};
-         end
-         if(cnt == 80*240/2-1)begin
-            if(color == 2'b11)begin
-               fifo_valid <= 1'b0;
-            end
-            color <= color + 1;
-            cnt <= 0;
-         end else begin
-            cnt <= cnt + 1;
-         end
-      end
-   end
+   lcd_dma_buf lcd_dma_buf
+     (
+      .M_AXI_ACLK(AXI_ACLK),
+      .M_AXI_ARESETN(AXI_ARESETN),
+      .M_AXI_ARADDR(M_AXI_ARADDR),
+      .M_AXI_ARLEN(M_AXI_ARLEN),
+      .M_AXI_ARSIZE(M_AXI_ARSIZE),
+      .M_AXI_ARBURST(M_AXI_ARBURST),
+      .M_AXI_ARCACHE(M_AXI_ARCACHE),
+      .M_AXI_ARVALID(M_AXI_ARVALID),
+      .M_AXI_ARREADY(M_AXI_ARREADY),
+      .M_AXI_RDATA(M_AXI_RDATA),
+      .M_AXI_RRESP(M_AXI_RRESP),
+      .M_AXI_RLAST(M_AXI_RLAST),
+      .M_AXI_RVALID(M_AXI_RVALID),
+      .M_AXI_RREADY(M_AXI_RREADY),
+
+      .frame_req(frame_req),
+      .frame_address(frame_address),
+
+      .fifo_req(fifo_req),
+      .fifo_data(fifo_data),
+      .fifo_valid(fifo_valid)
+      );
 
 endmodule
 
@@ -134,6 +171,7 @@ module lcd_reg
    output reg [7:0]  lcd_data,
 
    output reg        frame_req,
+   output reg [31:0] frame_address,
 
    output wire       fifo_req,
    input wire        fifo_valid,
@@ -227,7 +265,10 @@ module lcd_reg
            //4'd1 : lcd_ctl_tri[4:0] <= wb_dat_i[4:0];
            4'd2 : lcd_data[7:0] <= wb_dat_i[7:0];
            //4'd3 : lcd_data_tri[7:0] <= wb_dat_i[7:0];
-           4'd4 : frame_req <= 1'b1;
+           4'd4 : begin
+              frame_address[31:0] <= wb_dat_i[31:0];
+              frame_req <= 1'b1;
+           end
          endcase
       end else if(~lcd_ctl[0])begin
          pix <= 3;
@@ -245,8 +286,117 @@ module lcd_reg
             lcd_ctl[3] <= 1'b1;
          end
          if(cnt==1)begin
-            lcd_data <= fifo_data[8*pix+:8];
+            lcd_data <= fifo_data[8*({~pix[1],pix[0]})+:8];
          end
+      end
+   end
+
+endmodule
+
+module lcd_dma_buf
+  (
+   input wire        M_AXI_ACLK,
+   input wire        M_AXI_ARESETN,
+
+   output reg [31:0] M_AXI_ARADDR,
+   output reg [7:0]  M_AXI_ARLEN,
+   output reg [2:0]  M_AXI_ARSIZE,
+   output reg [1:0]  M_AXI_ARBURST,
+   output reg [3:0]  M_AXI_ARCACHE,
+   output reg        M_AXI_ARVALID,
+   input wire        M_AXI_ARREADY,
+   input wire [31:0] M_AXI_RDATA,
+   input wire [1:0]  M_AXI_RRESP,
+   input wire        M_AXI_RLAST,
+   input wire        M_AXI_RVALID,
+   output reg        M_AXI_RREADY,
+
+   input wire [31:0] frame_address,
+   input wire        frame_req,
+
+   input wire        fifo_req,
+   output wire       fifo_valid,
+   output reg [31:0] fifo_data
+   );
+
+   parameter len = 20;    // 4 Bytes * 20 Burst = 2Bytes * 40 pixel
+   parameter cyc = 6*320; // 40 pixel * 6 * 320 = 240 * 320 pixel
+
+   reg                state;
+   wire               fifo_full;
+   reg                fifo_wait;
+   always @(posedge M_AXI_ACLK or negedge M_AXI_ARESETN)begin
+      if(~M_AXI_ARESETN)begin
+         state <= 1'b0;
+         fifo_wait <= 1'b0;
+         M_AXI_ARADDR[31:0] <= 0;
+         M_AXI_ARLEN[7:0] <= len-1;
+         M_AXI_ARSIZE[2:0] <= 2; // 32bit
+         M_AXI_ARBURST[1:0] <= 1; // incr
+         M_AXI_ARCACHE[3:0] <= 3;
+         M_AXI_ARVALID <= 1'b0;
+         M_AXI_RREADY <= 1'b1;
+      end else if(frame_req)begin
+         state <= 1'b1;
+         M_AXI_ARADDR[31:0] <= frame_address;
+         M_AXI_ARVALID <= 1'b1;
+      end else if (state)begin
+         if(M_AXI_ARREADY)begin
+            M_AXI_ARVALID <= 1'b0;
+         end
+         if(M_AXI_RLAST & M_AXI_RVALID)begin
+            if(M_AXI_ARADDR[31:0] != (frame_address+len*4*(6*320-1)))begin
+               M_AXI_ARADDR[31:0] <= M_AXI_ARADDR[31:0] + len*4;
+               if(fifo_full)begin
+                  fifo_wait <= 1'b1;
+               end else begin
+                  M_AXI_ARVALID <= 1'b1;
+               end
+            end else begin
+               state <= 1'b0;
+            end
+         end
+         if(fifo_wait & ~fifo_full)begin
+            M_AXI_ARVALID <= 1'b1;
+            fifo_wait <= 1'b0;
+         end
+      end
+   end
+
+   reg [31:0]         fifo [0:1023];
+   reg [10:0]         wp;
+   reg [9:0]          rp;
+   assign fifo_full = (wp - rp)>(1024-len);
+   assign fifo_valid = (wp>rp);
+
+   always @(posedge M_AXI_ACLK or negedge M_AXI_ARESETN)begin
+      if(~M_AXI_ARESETN)begin
+         wp <= 0;
+         rp <= 0;
+      end else begin
+         if(M_AXI_RVALID)begin
+            wp <= wp + 1;
+         end
+         if(fifo_req)begin
+            if(wp>rp)begin
+               rp <= rp + 1;
+            end
+            if(rp == 10'h3ff)begin
+               wp[10] <= 1'b0;
+            end
+         end
+      end
+   end
+
+   always @(posedge M_AXI_ACLK)begin
+      if(M_AXI_RVALID)begin
+         fifo[wp[9:0]] <= M_AXI_RDATA;
+      end
+   end
+
+   always @(posedge M_AXI_ACLK)begin
+      if(fifo_req&(wp>rp))begin
+         fifo_data <= fifo[rp];
       end
    end
 
