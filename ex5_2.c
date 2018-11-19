@@ -32,8 +32,8 @@ int fbuf;      /* フレームバッファへの仮想アドレス(ユーザ空�
 #define uint16_t unsigned short
 #define uint32_t unsigned int
 
-const int __Gnbmp_height = 320;                 // bmp hight
-const int __Gnbmp_width  = 240;                 // bmp width
+const int __Gnbmp_height = 240;                 // bmp hight
+const int __Gnbmp_width  = 320;                 // bmp width
 
 unsigned char __Gnbmp_image_offset  = 0;        // offset
 
@@ -104,13 +104,13 @@ uint32_t read32(FILE *fp)
 
 void bmpdraw(FILE *fp, int x, int y)
 {
-  Address_set(0,0,240,320);
+  Address_set(0,0,320,240);
 
   REG(address + GPIO_DATA_1)  =  0x1d;
 
   fseek(fp, __Gnbmp_image_offset, SEEK_SET);
 
-  for (int i=0; i< __Gnbmp_height; i++) {
+  for (int i=__Gnbmp_height-1; i>=0 ; i--) {
     for(int j=0; j< __Gnbmp_width; j++) {
 
       unsigned int __color;
@@ -265,7 +265,7 @@ void setup(void) {
   Lcd_Write_Data(0x86);   //--
 
   Lcd_Write_Com(0x36);    // Memory Access Control
-  Lcd_Write_Data(0x48);
+  Lcd_Write_Data(0x28);
 
   Lcd_Write_Com(0x3A);
   Lcd_Write_Data(0x55);

@@ -27,8 +27,8 @@ int address;    /* GPIOレジスタへの仮想アドレス(ユーザ空間) */
 #define uint16_t unsigned short
 #define uint32_t unsigned int
 
-const int __Gnbmp_height = 320;                 // bmp hight
-const int __Gnbmp_width  = 240;                 // bmp width
+const int __Gnbmp_height = 240;                 // bmp hight
+const int __Gnbmp_width  = 320;                 // bmp width
 
 unsigned char __Gnbmp_image_offset  = 0;        // offset
 
@@ -99,7 +99,7 @@ uint32_t read32(FILE *fp)
 
 void bmpdraw(FILE *fp, int x, int y)
 {
-  Address_set(0,0,240,320);
+  Address_set(0,0,320,240);
   //Lcd_Write_Com(0x02c); //write_memory_start
   //digitalWrite(LCD_RS,HIGH);
   REG(address + GPIO_DATA_1) &= ~LCD_CS;
@@ -251,7 +251,7 @@ void setup(void) {
   Lcd_Write_Data(0x86);   //--
 
   Lcd_Write_Com(0x36);    // Memory Access Control
-  Lcd_Write_Data(0x48);
+  Lcd_Write_Data(0x68);
 
   Lcd_Write_Com(0x3A);
   Lcd_Write_Data(0x55);

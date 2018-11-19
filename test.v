@@ -109,7 +109,7 @@ module test;
          state <= 1'b1;
          len <= len + 1;
          if(color==0)begin
-            M_AXI_RDATA <= {1'b0,cnt[13:0],1'b0,1'b0,cnt[13:0],1'b1};
+            M_AXI_RDATA <= {1'b0,cnt[13:0],1'b1,1'b0,cnt[13:0],1'b0};
          end else if(color==1)begin
             M_AXI_RDATA <= {2{16'h001f}};
          end else if(color==2)begin
