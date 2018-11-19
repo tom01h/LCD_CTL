@@ -290,7 +290,7 @@ module lcd_reg
             lcd_ctl[3] <= 1'b0;
          end else if(cnt==8)begin
             lcd_ctl[3] <= 1'b1;
-         end else if(~state&(pix==0)&(cnt==9))begin
+         end else if(~state&~fifo_valid&(pix==0)&(cnt==9))begin
             lcd_ctl[4:0] <= 5'h1f;
          end
          if(cnt==1)begin
