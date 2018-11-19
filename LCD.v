@@ -63,6 +63,7 @@ module lcd_control
 
    wire               frame_req;
    wire [31:0]        frame_address;
+   wire               state;
    wire               fifo_req;
    wire               fifo_valid;
    wire [31:0]        fifo_data;
@@ -97,6 +98,7 @@ module lcd_control
       .frame_req(frame_req),
       .frame_address(frame_address),
 
+      .state(state),
       .fifo_req(fifo_req),
       .fifo_valid(fifo_valid),
       .fifo_data(fifo_data)
@@ -134,6 +136,7 @@ module lcd_control
       .frame_req(frame_req),
       .frame_address(frame_address),
 
+      .state(state),
       .fifo_req(fifo_req),
       .fifo_data(fifo_data),
       .fifo_valid(fifo_valid)
@@ -173,6 +176,7 @@ module lcd_reg
    output reg        frame_req,
    output reg [31:0] frame_address,
 
+   input wire        state,
    output wire       fifo_req,
    input wire        fifo_valid,
    input wire [31:0] fifo_data
@@ -181,11 +185,12 @@ module lcd_reg
    reg [3:0]         axist;
    reg [5:2]         wb_adr_i;
    reg [31:0]        wb_dat_i;
+   wire              wbusy = frame_req|state|fifo_valid|~fifo_req;
 
    assign S_AXI_BRESP = 2'b00;
    assign S_AXI_RRESP = 2'b00;
-   assign S_AXI_AWREADY = (axist == 4'b0000)|(axist == 4'b0010);
-   assign S_AXI_WREADY  = (axist == 4'b0000)|(axist == 4'b0001);
+   assign S_AXI_AWREADY =((axist == 4'b0000)|(axist == 4'b0010))&~wbusy;
+   assign S_AXI_WREADY  =((axist == 4'b0000)|(axist == 4'b0001))&~wbusy;
    assign S_AXI_ARREADY = (axist == 4'b0000);
    assign S_AXI_BVALID  = (axist == 4'b0011);
    assign S_AXI_RVALID  = (axist == 4'b0100);
@@ -197,14 +202,14 @@ module lcd_reg
          wb_adr_i<=0;
          wb_dat_i<=0;
       end else if(axist==4'b000)begin
-         if(S_AXI_AWVALID & S_AXI_WVALID)begin
+         if(S_AXI_AWVALID & S_AXI_WVALID & ~wbusy)begin
             axist<=4'b0011;
             wb_adr_i[5:2]<=S_AXI_AWADDR[5:2];
             wb_dat_i<=S_AXI_WDATA;
-         end else if(S_AXI_AWVALID)begin
+         end else if(S_AXI_AWVALID & ~wbusy)begin
             axist<=4'b0001;
             wb_adr_i[5:2]<=S_AXI_AWADDR[5:2];
-         end else if(S_AXI_WVALID)begin
+         end else if(S_AXI_WVALID & ~wbusy)begin
             axist<=4'b0010;
             wb_dat_i<=S_AXI_WDATA;
          end else if(S_AXI_ARVALID)begin
@@ -266,6 +271,7 @@ module lcd_reg
            4'd2 : lcd_data[7:0] <= wb_dat_i[7:0];
            //4'd3 : lcd_data_tri[7:0] <= wb_dat_i[7:0];
            4'd4 : begin
+              lcd_ctl[4:0] <= 5'h1d;
               frame_address[31:0] <= wb_dat_i[31:0];
               frame_req <= 1'b1;
            end
@@ -284,6 +290,8 @@ module lcd_reg
             lcd_ctl[3] <= 1'b0;
          end else if(cnt==8)begin
             lcd_ctl[3] <= 1'b1;
+         end else if(~state&(pix==0)&(cnt==9))begin
+            lcd_ctl[4:0] <= 5'h1f;
          end
          if(cnt==1)begin
             lcd_data <= fifo_data[8*({~pix[1],pix[0]})+:8];
@@ -314,6 +322,7 @@ module lcd_dma_buf
    input wire [31:0] frame_address,
    input wire        frame_req,
 
+   output reg        state,
    input wire        fifo_req,
    output wire       fifo_valid,
    output reg [31:0] fifo_data
@@ -322,7 +331,6 @@ module lcd_dma_buf
    parameter len = 20;    // 4 Bytes * 20 Burst = 2Bytes * 40 pixel
    parameter cyc = 6*320; // 40 pixel * 6 * 320 = 240 * 320 pixel
 
-   reg                state;
    wire               fifo_full;
    reg                fifo_wait;
    always @(posedge M_AXI_ACLK or negedge M_AXI_ARESETN)begin

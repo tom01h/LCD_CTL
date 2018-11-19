@@ -63,12 +63,12 @@ module test;
       S_AXI_WSTRB <= 4'hf;
       S_AXI_WVALID <= 1'b1;
 
-      @(negedge AXI_ACLK);
-      S_AXI_AWVALID <= 1'b0;
-      S_AXI_WSTRB <= 4'h0;
-      S_AXI_WVALID <= 1'b0;
+      //@(negedge AXI_ACLK);
+      //S_AXI_AWVALID <= 1'b0;
+      //S_AXI_WSTRB <= 4'h0;
+      //S_AXI_WVALID <= 1'b0;
 
-      #17000000 ;
+      //#17000000 ;
 
       @(negedge AXI_ACLK);
       S_AXI_AWADDR <= 32'h4020_0010;
@@ -78,6 +78,8 @@ module test;
       S_AXI_WSTRB <= 4'hf;
       S_AXI_WVALID <= 1'b1;
 
+      @(posedge S_AXI_WREADY);
+      @(negedge AXI_ACLK);
       @(negedge AXI_ACLK);
       S_AXI_AWVALID <= 1'b0;
       S_AXI_WSTRB <= 4'h0;
