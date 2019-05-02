@@ -11,7 +11,6 @@
 #define LCD_REST (0x001)
 
 #define REG(addr) *(volatile unsigned int*)(addr)
-#define GPIO_BASE   (0x40200000)
 #define GPIO_DATA_1 (0x0000)
 #define GPIO_TRI_1  (0x0004)
 #define GPIO_DATA_2 (0x0008)
@@ -19,10 +18,10 @@
 #define GPIO_START  (0x0010)
 
 #define FBUF(addr) *(volatile unsigned short*)(addr)
-#define FBUF_BASE   (0x1ffc0000)
 
-int address;    /* GPIOレジスタへの仮想アドレス(ユーザ空間) */
-int fbuf;      /* フレームバッファへの仮想アドレス(ユーザ空間) */
+unsigned long address;    /* GPIOレジスタへの仮想アドレス(ユーザ空間) */
+unsigned long fbuf;      /* フレームバッファへの仮想アドレス(ユーザ空間) */
+unsigned long fbuf_phys;      /* フレームバッファへの物理アドレス */
 
 #define MAX_BMP         10                      // bmp file num
 #define FILENAME_LEN    20                      // max file name length
@@ -120,7 +119,7 @@ void bmpdraw(FILE *fp, int x, int y)
     }
   }
 
-  REG(address + GPIO_START) = FBUF_BASE;
+  REG(address + GPIO_START) = fbuf_phys;
 
 }
 
@@ -173,29 +172,39 @@ bool bmpReadHeader(FILE *fp)
 }
 
 void setup(void) {
-  int fd;
+  int fd0,lcd;
+
+  if ((fd0  = open("/sys/class/udmabuf/udmabuf0/phys_addr", O_RDONLY)) != -1) {
+    char attr[1024];
+    read(fd0, attr, 1024);
+    sscanf(attr, "%lx", &fbuf_phys);
+    close(fd0);
+  }
+
 
   /* メモリアクセス用のデバイスファイルを開く */
-  if ((fd = open("/dev/mem", O_RDWR | O_SYNC)) < 0) {
+  if ((fd0 = open("/dev/udmabuf0", O_RDWR)) < 0) {
     perror("open");
-    return ;
+    return;
+  }
+  if ((lcd = open("/dev/uio0", O_RDWR | O_SYNC)) < 0) {
+    perror("open");
+    return;
+  }
+  /* ARM(CPU)から見た物理アドレス → 仮想アドレスへのマッピング */
+  fbuf = (unsigned long)mmap(NULL, 0x00040000, PROT_READ | PROT_WRITE, MAP_SHARED, fd0, 0);
+  if (fbuf == (unsigned long)MAP_FAILED) {
+    perror("mmap");
+    close(fd0);
+    return;
+  }
+  address = (unsigned long)mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, lcd, 0);
+  if (address == (unsigned long)MAP_FAILED) {
+    perror("mmap");
+    close(lcd);
+    return;
   }
 
-  /* ARM(CPU)から見た物理アドレス → 仮想アドレスへのマッピング */
-  fbuf = (int)mmap(NULL, 0x40000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, FBUF_BASE);
-  if (fbuf == (int)MAP_FAILED) {
-    perror("mmap");
-    close(fd);
-    return ;
-  }
-
-  /* ARM(CPU)から見た物理アドレス → 仮想アドレスへのマッピング */
-  address = (int)mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO_BASE);
-  if (address == (int)MAP_FAILED) {
-    perror("mmap");
-    close(fd);
-    return ;
-  }
 
   REG(address + GPIO_TRI_1) = 0x0;
   REG(address + GPIO_TRI_2) = 0x0;

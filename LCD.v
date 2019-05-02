@@ -328,8 +328,8 @@ module lcd_dma_buf
    output reg [31:0] fifo_data
    );
 
-   parameter len = 20;    // 4 Bytes * 20 Burst = 2Bytes * 40 pixel
-   parameter cyc = 6*320; // 40 pixel * 6 * 320 = 240 * 320 pixel
+   parameter len = 16;     // 4 Bytes * 16 Burst = 2Bytes * 32 pixel
+   parameter cyc = 10*240; // 32 pixel * 10 * 240 = 320 * 240 pixel
 
    wire               fifo_full;
    reg                fifo_wait;
@@ -353,7 +353,7 @@ module lcd_dma_buf
             M_AXI_ARVALID <= 1'b0;
          end
          if(M_AXI_RLAST & M_AXI_RVALID)begin
-            if(M_AXI_ARADDR[31:0] != (frame_address+len*4*(6*320-1)))begin
+            if(M_AXI_ARADDR[31:0] != (frame_address+len*4*(cyc-1)))begin
                M_AXI_ARADDR[31:0] <= M_AXI_ARADDR[31:0] + len*4;
                if(fifo_full)begin
                   fifo_wait <= 1'b1;
