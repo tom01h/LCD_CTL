@@ -8,7 +8,7 @@
 ![LCD_CTL](LCD_CTL.svg)
 
 BusControl は frame_req を受けると 1フレーム分のデータを AXI マスタから読みだす。  
-1回のリクエストは 32bit×20バースト。  
+1回のリクエストは 32bit×16バースト。  
 ただし、fifo_full 期間中は休む。
 
 Fifo は AXI マスタからの読み出しデータを積む。  
