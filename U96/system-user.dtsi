@@ -1,7 +1,8 @@
 /include/ "system-conf.dtsi"
-/ {
+/include/ "openamp-overlay.dtsi"
+/{
     chosen {
-        bootargs = "console=ttyPS0,115200 earlyprintk uio_pdrv_genirq.of_id=generic-uio root=/dev/mmcblk0p2 rw rootwait";
+        bootargs = "earlycon clk_ignore_unused root=/dev/mmcblk0p2 rw rootwait  uio_pdrv_genirq.of_id=generic-uio";
         stdout-path = "serial0:115200n8";
     };
     udmabuf@0 {

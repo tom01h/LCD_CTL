@@ -63,6 +63,7 @@ module lcd_control
 
    wire               frame_req;
    wire [31:0]        frame_address;
+   wire [15:0]        frame_cyc;
    wire               state;
    wire               fifo_req;
    wire               fifo_valid;
@@ -97,6 +98,7 @@ module lcd_control
 
       .frame_req(frame_req),
       .frame_address(frame_address),
+      .frame_cyc(frame_cyc),
 
       .state(state),
       .fifo_req(fifo_req),
@@ -135,6 +137,7 @@ module lcd_control
 
       .frame_req(frame_req),
       .frame_address(frame_address),
+      .frame_cyc(frame_cyc),
 
       .state(state),
       .fifo_req(fifo_req),
@@ -175,6 +178,7 @@ module lcd_reg
 
    output reg        frame_req,
    output reg [31:0] frame_address,
+   output reg [15:0] frame_cyc,
 
    input wire        state,
    output wire       fifo_req,
@@ -182,6 +186,7 @@ module lcd_reg
    input wire [31:0] fifo_data
    );
 
+   reg [1:0]         out_rate;
    reg [3:0]         axist;
    reg [5:2]         wb_adr_i;
    reg [31:0]        wb_dat_i;
@@ -242,17 +247,19 @@ module lcd_reg
          S_AXI_RDATA <= 32'h0;
       end else if(read)begin
          case(S_AXI_ARADDR[5:2])
-           4'd0 : S_AXI_RDATA <= lcd_ctl[4:0];
+           4'd0 : S_AXI_RDATA <= {{27{1'b0}},lcd_ctl[4:0]};
            //4'd1 : S_AXI_RDATA <= lcd_ctl_tri[4:0];
-           4'd2 : S_AXI_RDATA <= lcd_data[7:0];
+           4'd2 : S_AXI_RDATA <= {{24{1'b0}},lcd_data[7:0]};
            //4'd3 : S_AXI_RDATA <= lcd_data_tri[7:0];
+           4'd5 : S_AXI_RDATA <= {{16{1'b0}},frame_cyc[15:0]};
+           4'd6 : S_AXI_RDATA <= {{30{1'b0}},out_rate[1:0]};
            default: S_AXI_RDATA <= {32'h0};
          endcase
       end
    end
 
    reg [1:0] pix;
-   reg [3:0] cnt;
+   reg [6:0] cnt;
    assign fifo_req = (pix==3) & (cnt==0);
 
    always @(posedge S_AXI_ACLK)begin
@@ -264,6 +271,8 @@ module lcd_reg
          //lcd_ctl_tri[4:0] <= 0;
          lcd_data[7:0] <= 0;
          //lcd_data_tri[7:0] <= 0;
+         frame_cyc[15:0] <= 16'h0;
+         out_rate[1:0] <= 2'b0;
       end else if(write)begin
          case(wb_adr_i[5:2])
            4'd0 : lcd_ctl[4:0] <= wb_dat_i[4:0];
@@ -275,25 +284,27 @@ module lcd_reg
               frame_address[31:0] <= wb_dat_i[31:0];
               frame_req <= 1'b1;
            end
+           4'd5 : frame_cyc[15:0] <= wb_dat_i[15:0];
+           4'd6 : out_rate[1:0] <= wb_dat_i[1:0];
          endcase
       end else if(~lcd_ctl[0])begin
          pix <= 3;
          cnt <= 0;
       end else if(fifo_valid|~fifo_req)begin
-         if(cnt == 9)begin
+         if(cnt == (9<<out_rate))begin
             pix <= pix - 1;
             cnt <= 0;
          end else begin
             cnt <= cnt + 1;
          end
-         if(cnt==3)begin
+         if(cnt==(3<<out_rate))begin
             lcd_ctl[3] <= 1'b0;
-         end else if(cnt==8)begin
+         end else if(cnt==(8<<out_rate))begin
             lcd_ctl[3] <= 1'b1;
-         end else if(~state&~fifo_valid&(pix==0)&(cnt==9))begin
+         end else if(~state&~fifo_valid&(pix==0)&(cnt==(9<<out_rate)))begin
             lcd_ctl[4:0] <= 5'h1f;
          end
-         if(cnt==1)begin
+         if(cnt==(1<<out_rate))begin
             lcd_data <= fifo_data[8*({~pix[1],pix[0]})+:8];
          end
       end
@@ -320,6 +331,7 @@ module lcd_dma_buf
    output reg        M_AXI_RREADY,
 
    input wire [31:0] frame_address,
+   input wire [15:0] frame_cyc,
    input wire        frame_req,
 
    output reg        state,
@@ -329,7 +341,7 @@ module lcd_dma_buf
    );
 
    parameter len = 16;     // 4 Bytes * 16 Burst = 2Bytes * 32 pixel
-   parameter cyc = 10*240; // 32 pixel * 10 * 240 = 320 * 240 pixel
+//   parameter cyc = 10*240; // 32 pixel * 10 * 240 = 320 * 240 pixel
 
    wire               fifo_full;
    reg                fifo_wait;
@@ -353,7 +365,7 @@ module lcd_dma_buf
             M_AXI_ARVALID <= 1'b0;
          end
          if(M_AXI_RLAST & M_AXI_RVALID)begin
-            if(M_AXI_ARADDR[31:0] != (frame_address+len*4*(cyc-1)))begin
+            if(M_AXI_ARADDR[31:0] != (frame_address+len*4*(frame_cyc-1)))begin
                M_AXI_ARADDR[31:0] <= M_AXI_ARADDR[31:0] + len*4;
                if(fifo_full)begin
                   fifo_wait <= 1'b1;

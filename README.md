@@ -101,7 +101,7 @@ $ sudo sync
 ホストPCでクロスコンパイルして
 
 ```
-$ ${SDK path}/gnu/aarch32/nt/gcc-arm-linux-gnueabi/bin/arm-linux-gnueabihf-gcc.exe -O3  ex5_3.c -o ex5_3
+$ ${SDK path}/gnu/aarch32/nt/gcc-arm-linux-gnueabi/bin/arm-linux-gnueabihf-gcc.exe x5_3.c -o ex5_3
 ```
 
 ### 実行する

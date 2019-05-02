@@ -122,7 +122,7 @@ void bmpdraw(FILE *fp, int x, int y)
   }
 
   REG(address + GPIO_CYC) = 320*240/16/2;
-  REG(address + GPIO_RATE) = 0;
+  REG(address + GPIO_RATE) = 3;
   REG(address + GPIO_START) = fbuf_phys;
 
 }
@@ -191,7 +191,7 @@ void setup(void) {
     perror("open");
     return;
   }
-  if ((lcd = open("/dev/uio0", O_RDWR | O_SYNC)) < 0) {
+  if ((lcd = open("/dev/uio1", O_RDWR | O_SYNC)) < 0) {
     perror("open");
     return;
   }
