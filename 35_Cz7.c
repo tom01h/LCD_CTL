@@ -104,7 +104,7 @@ uint32_t read32(FILE *fp)
 
 void bmpdraw(FILE *fp, int x, int y)
 {
-  Address_set(0,0,320-1,480-1);
+  Address_set(0,0,320,480);
 
   fseek(fp, __Gnbmp_image_offset, SEEK_SET);
 
