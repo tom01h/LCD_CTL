@@ -98,10 +98,10 @@ $ sudo sync
 
 ### プログラムをコンパイルする
 
-ホストPCでクロスコンパイルして
+ホストPCでクロスコンパイルします。(3.5インチシールドの場合は 35_Uz7.c)
 
 ```
-$ ${SDK path}/gnu/aarch32/nt/gcc-arm-linux-gnueabi/bin/arm-linux-gnueabihf-gcc.exe x5_3.c -o ex5_3
+$ ${SDK path}/gnu/aarch32/nt/gcc-arm-linux-gnueabi/bin/arm-linux-gnueabihf-gcc.exe 28_Cz7.c -o 28_Cz7
 ```
 
 ### 実行する
@@ -111,6 +111,6 @@ Petalinux ファイル ```images/linux/BOOT.bin, image.ub``` と実行ファイ�
 
 ```
 root@tiny-dnn:~# mount /dev/mmcblk0p1 /mnt/
-root@tiny-dnn:~# /mnt/ex5_3
+root@tiny-dnn:~# /mnt/28_Cz7
 ```
 
